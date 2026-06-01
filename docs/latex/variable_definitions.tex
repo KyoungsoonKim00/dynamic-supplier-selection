@@ -1,0 +1,165 @@
+\documentclass[a4paper, 11pt]{article}
+
+% --- 한글 지원 패키지 ---
+\usepackage{kotex} 
+
+% --- 수학 및 기호 패키지 ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{bm}
+\usepackage{geometry}
+\geometry{margin=1in} % 여백 설정
+
+\begin{document}
+
+\section{문제 정의 (Problem Definition)}
+
+본 프로젝트에서는 이질적인 리드타임과 비정상 수요를 갖는 다중 공급업체 재고 시스템을 다룬다. 목표는 유한한 계획 기간 $T$ 동안의 기대 총 비용을 최소화하는 최적의 주문 정책을 수립하는 것이다.
+
+\subsection{집합 및 인덱스 (Sets and Indices)}
+\begin{itemize}
+    \item $t \in \{0, 1, \dots, T\}$: 계획 기간 (일 단위, Day).
+    \item $k \in \mathcal{K} = \{1, \dots, K\}$: 공급업체 집합.
+\end{itemize}
+
+\subsection{파라미터 (Parameters)}
+\begin{itemize}
+    \item $\tau_k$: 공급업체 $k$의 확정 리드타임 (Lead time). ($\tau_{\max} = \max_{k} \tau_k$)
+    \item $P_k$: 공급업체 $k$의 단위 구매 비용.
+    \item $MOQ_k$: 공급업체 $k$의 최소 주문 수량 (Minimum Order Quantity).
+    \item $C_{\text{ship}, k}$: 공급업체 $k$의 트럭당 운송 비용.
+    \item $C_{\text{cap}, k}$: 공급업체 $k$의 트럭 1대당 적재 용량.
+    \item $h$: 단위 기간당 단위 재고 유지 비용 (Holding cost).
+    \item $b$: 단위 기간당 단위 재고 부족(또는 판매 기회비용) 페널티 (Penalty cost).
+    \item $\omega$: 창고 용량 초과에 대한 단위 페널티.
+    \item $CAP$: 창고의 최대 적재 용량.
+    \item $\gamma$: 할인율. ($\gamma = 1$ 고정)
+\end{itemize}
+
+\subsection{상태 변수 (State Variables)}
+시점 $t$에서의 상태 $S_t \in \mathbb{R}^{1 + \tau_{\max} + 2}$는 Zipkin(2008)의 파이프라인 개념을 기반으로 다음과 같이 정의된다.
+\begin{equation}
+    S_t = [I_t, \ x_t^1, \ x_t^2, \ \dots, \ x_t^{\tau_{\max}}, \ \sin(\tfrac{2\pi t}{365}), \ \cos(\tfrac{2\pi t}{365})]
+\end{equation}
+\begin{itemize}
+    \item $I_t$: 시점 $t$ 초의 보유 재고 수준.
+    \item $x_t^i$: 현재 시점($t$)으로부터 $i$일 후에 도착할 예정인 파이프라인 재고량.
+    \item 마지막 두 항: 계절성 반영을 위한 순환 시간 인코딩.
+\end{itemize}
+
+\subsection{의사결정 변수 및 행동 벡터 (Action Vector)}
+에이전트는 매 시점 $t$마다 공급업체 선택($k_t$)과 주문량($q_t$)을 결정한다.
+\begin{itemize}
+    \item $k_t \in \{0, 1, \dots, K\}$: 선택된 공급업체 인덱스 (0이면 주문 안 함).
+    \item $q_t \ge 0$: 선택된 공급업체 $k_t$에게 발주할 주문 수량.
+\end{itemize}
+이를 통합하여 행동 벡터 $A_t$는 다음과 같이 정의된다.
+\begin{equation}
+    A_t = [k_t, \ q_t]
+\end{equation}
+
+\subsection{수요 변수 (Demand Variables)}
+본 시스템의 수요 $D_t$는 고정된 기저 수요에 월별(Monthly) 및 요일별(Day-of-Week) 계절성 계수가 곱해지는 승법 모델로 정의된다.
+
+\begin{equation}
+    D_t = \max(0, \mu_t + \epsilon_t)
+\end{equation}
+
+\begin{itemize}
+    \item 결정론적 평균 수요 ($\mu_t$):
+    기저 수요(Base)에 시점 $t$가 속한 월(Month)과 요일(Day)의 가중치를 각각 곱하여 산출한다.
+    
+    \begin{center}
+        \textbf{[평균 수요 = 기저 수요 $\times$ 월별 가중치 $\times$ 요일별 가중치]}
+    \end{center}
+    
+    \begin{equation}
+        \mu_t = \text{Base} \times \alpha_{m(t)} \times \beta_{d(t)}
+    \end{equation}
+    
+    여기서 각 항의 정의는 다음과 같다.
+    \begin{itemize}
+        \item $m(t) \in \{1, \dots, 12\}$: 시점 $t$의 월 인덱스.
+        \item $d(t) \in \{0, \dots, 6\}$: 시점 $t$의 요일 인덱스.
+        \item $\alpha \in \mathbb{R}^{12}$: 월별 수요 가중치 벡터.
+        \begin{itemize}
+            \item예: $\alpha = [1.2, 1.1, 1.0, 0.9, 1.0, 1.1, \mathbf{1.5, 1.5}, 1.0, \mathbf{0.8, 0.8}, 1.3]$
+        \end{itemize}
+        \item $\beta \in \mathbb{R}^7$: 요일별 수요 가중치 벡터.
+        \begin{itemize}
+            \item예: $\beta = [1.3, 1.1, 1.0, 1.0, 0.9, 0.5, 0.2]$
+        \end{itemize}
+    \end{itemize}
+    
+    \item 확률적 간헐적 충격 ($\epsilon_t$):
+    \begin{equation}
+        \epsilon_t = \delta_t \cdot Z_t \quad (\delta_t \sim \text{Bernoulli}, \ Z_t \sim \mathcal{N})
+    \end{equation}
+\end{itemize}
+
+
+
+
+
+
+\subsection{비용 벡터 (Cost Vector)}
+시점 $t$에서 발생하는 비용을 세부 항목별로 분석하기 위해 비용 벡터 $\mathbf{C}_t \in \mathbb{R}^5$를 다음과 같이 정의한다.
+\begin{equation}
+    \mathbf{C}_t = 
+    \begin{bmatrix}
+    C^{\text{purch}}_t \\ C^{\text{ship}}_t \\ C^{\text{hold}}_t \\ C^{\text{short}}_t \\ C^{\text{over}}_t
+    \end{bmatrix}
+    =
+    \begin{bmatrix}
+    P_{k_t} \cdot q_t \cdot \mathbb{I}(k_t > 0) \\
+    C_{\text{ship}, k_t} \left\lceil \frac{q_t}{C_{\text{cap}, k_t}} \right\rceil \cdot \mathbb{I}(k_t > 0) \\
+    h \cdot \max(0, I_{t+1}) \\
+    b \cdot \max(0, -I_{t+1}) \\
+    \omega \cdot \max(0, I_{t+1} - CAP)
+    \end{bmatrix}
+\end{equation}
+각 성분은 순서대로 구매, 운송, 재고 유지, 재고 부족, 용량 초과 비용을 의미한다.
+\clearpage %
+
+\subsection{시스템 동역학 (System Dynamics)}
+본 시스템의 전이 함수(Transition Function) $f$는 현재 상태 $S_t$, 결정된 행동 $A_t = [k_t, q_t]$, 그리고 실현된 수요 $D_t$를 입력으로 받아 다음 시점의 상태 $S_{t+1}$을 결정한다.
+\begin{equation}
+    S_{t+1} = f(S_t, A_t, D_t)
+\end{equation}
+
+상태 변수의 각 성분별 전이 규칙은 다음과 같다.
+
+\begin{enumerate}
+    \item \textbf{재고 전이 (Inventory Transition):} 
+    시점 $t$의 재고 $I_t$는 실현된 수요 $D_t$만큼 감소하고, 리드타임이 경과하여 시점 $t$에 도착한 파이프라인 재고 $x_t^1$만큼 증가한다.
+    \begin{equation}
+        I_{t+1} = I_t - D_t + x_t^1 \label{eq:inv_balance}
+    \end{equation}
+
+    \item \textbf{파이프라인 전이 (Pipeline Transition):} 
+    파이프라인 벡터는 시간이 흐름에 따라 한 단계씩 앞으로 이동하며(Shift), 새로 발생한 주문량 $q_t$는 해당 공급업체의 리드타임 $\tau_{k_t}$ 위치에 삽입된다.
+    \begin{equation}
+         x_{t+1}^i = 
+        \begin{cases} 
+        x_{t}^{i+1} + q_t \cdot \mathbb{I}(\tau_{k_t} = i) & \text{if } 1 \le i < \tau_{\max} \\
+        \mathbb{I}(\tau_{k_t} = \tau_{\max}) \cdot q_t & \text{if } i = \tau_{\max}
+        \end{cases} \label{eq:pipeline_update}
+    \end{equation}
+    
+    \item \textbf{시간 변수 전이 (Time Feature Transition):} 
+    시간 인코딩 변수는 매 시점 $t \to t+1$로 선형적으로 증가하며 순환한다.
+\end{enumerate}
+
+\subsection{목적 함수 (Objective Function)}
+최종 목표는 계획 기간 $T$ 동안의 총 비용(Total Cost)의 기댓값을 최소화하는 것이다. 총 비용은 비용 벡터의 모든 성분의 합으로 계산된다.
+\begin{equation}
+    \min_{\pi} \mathbb{E} \left[ \sum_{t=0}^{T} \sum_{j=1}^{5} \mathbf{C}_t^{(j)} \right]
+\end{equation}
+여기서 $\mathbf{C}_t^{(j)}$는 비용 벡터 $\mathbf{C}_t$의 $j$번째 요소를 의미한다.
+
+
+
+
+
+
+\end{document}

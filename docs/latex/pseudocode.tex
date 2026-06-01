@@ -1,0 +1,32 @@
+\begin{algorithm}[hbt!]
+\caption{Forward Pass of Encoder-Dual Decoder Architecture}
+\label{alg:dual_decoder_forward}
+\begin{algorithmic}[1]
+    \Require State $s_t$ (Inventory, Demand, etc.), Model Parameters $\theta$
+    \Ensure Action $a_t = (y_t, q_t)$, Probability $p_\theta(a_t|s_t)$
+    
+    \State \textbf{// 1. Encoder Step}
+    \State $H_{enc} \leftarrow \text{Encoder}(s_t; \theta_{enc})$ \Comment{Extract context embeddings}
+    
+    \State \textbf{// 2. Dual Decoder Step}
+    \State \textbf{// Phase 1: Binary Setup Decision}
+    \State $h_{dec}^{(1)} \leftarrow \text{DecoderBlock}_1(H_{enc}; \theta_{dec1})$
+    \State $\pi(y_t|s_t) \leftarrow \text{Softmax}(\text{Linear}(h_{dec}^{(1)}))$
+    \State Sample binary decision $y_t \sim \pi(y_t|s_t)$
+    
+    \State \textbf{// Phase 2: Continuous Quantity Decision}
+    \If{$y_t = 1$} \Comment{If setup occurs}
+        \State $h_{dec}^{(2)} \leftarrow \text{DecoderBlock}_2(H_{enc}, y_t; \theta_{dec2})$
+        \State $\mu_t, \sigma_t \leftarrow \text{ProjectionHead}(h_{dec}^{(2)})$
+        \State Define distribution $\mathcal{N}(\mu_t, \sigma_t)$ (or discretized logits)
+        \State Sample quantity $q_t \sim \mathcal{N}(\mu_t, \sigma_t)$
+    \Else
+        \State $q_t \leftarrow 0$
+    \EndIf
+    
+    \State \textbf{// 3. Combine Outputs}
+    \State $a_t \leftarrow (y_t, q_t)$
+    \State $p_\theta(a_t|s_t) \leftarrow \pi(y_t|s_t) \cdot p(q_t|y_t, s_t)$
+    \State \Return $a_t, p_\theta(a_t|s_t)$
+\end{algorithmic}
+\end{algorithm}

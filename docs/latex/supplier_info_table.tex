@@ -1,0 +1,25 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs} % 표의 가로선을 예쁘게 그리기 위한 패키지
+\usepackage{array}    % 열 너비 및 정렬 조절
+\usepackage{kotex} 
+\begin{document}
+
+\begin{table}[ht]
+    \centering
+    \caption{공급업체별 매개변수 설정 (Supplier Parameters)}
+    \label{tab:supplier_info}
+    \begin{tabular}{clccccc}
+        \toprule
+        \textbf{ID} & \textbf{Name} & \textbf{Lead Time ($\tau$)} & \textbf{Price ($P$)} & \textbf{MOQ} & \textbf{Capacity ($C_{cap}$)} & \textbf{Shipping ($C_{ship}$)} \\
+        \midrule
+        1 & A & 7 & 80 & 1000 & 2000 & 5000 \\
+        2 & B & 5 & 100 & 500 & 1000 & 3000 \\
+        3 & C & 3 & 120 & 200 & 1000 & 2000 \\
+        4 & D & 1 & 150 & 50 & 500 & 5000 \\
+        5 & E & 0 & 200 & 0 & 100 & 2000 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\end{document}

@@ -1,0 +1,105 @@
+\documentclass{article}
+\usepackage{graphicx} % Required for inserting images
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{amsmath}
+\usepackage{kotex}
+
+\title{수도코드 등}
+\author{Kim Kyoung soon}
+\date{December 2025}
+
+\begin{document}
+
+
+\begin{algorithm}[hbt!]
+\caption{다중 공급업체 환경의 인코더-듀얼 디코더 순전파}
+\label{alg:dual_decoder_sclsp_clean}
+\begin{algorithmic}[1]
+    \Require 상태 $S_t$ (재고, 파이프라인 $x_t$, 계절성 정보), 파라미터 $\theta$
+    \Ensure 행동 $C_t = [u_{t,k}, q_{t,k}]$, 행동 확률 $p_\theta(C_t|S_t)$
+    
+    \State \textbf{1. 인코더 단계 (State Encoding)}
+    \State \quad $H_{enc} \leftarrow \text{Encoder}(S_t; \theta_{enc})$ \Comment{상태 $S_t$의 특징 벡터 추출}
+    
+    \State \textbf{2. 듀얼 디코더 단계 (Dual Decoder Step)}
+    \State \quad \textbf{Phase 1: 공급업체 선택 (Supplier Selection)}
+    \State \quad \Comment{$K$개의 공급업체 + '주문 안 함(Null)'을 포함한 $K+1$ 차원 로짓}
+    \State \quad $h_{dec}^{(1)} \leftarrow \text{DecoderBlock}_1(H_{enc}; \theta_{dec1})$
+    \State \quad $\pi(k|S_t) \leftarrow \text{Softmax}(\text{Linear}(h_{dec}^{(1)}))$ 
+    \State \quad $k^* \sim \pi(\cdot|S_t)$ \Comment{확률에 따라 공급업체 인덱스 $k^*$ 샘플링}
+    
+    \State \quad \textbf{선택된 $k^*$에 따라 이진 변수 설정}
+    \If{$k^* \in \mathcal{K}$}
+        \State $u_{t, k^*} \leftarrow 1, \quad u_{t, k \neq k^*} \leftarrow 0$
+    \Else \Comment{주문 안 함 선택 시}
+        \State $u_{t, k} \leftarrow 0 \quad \forall k$
+    \EndIf
+
+    \State \quad \textbf{Phase 2: 주문 수량 결정 (Order Quantity)}
+    \If{$\sum_{k} u_{t,k} = 1$} \Comment{특정 공급업체 $k^*$가 선택된 경우}
+        \State $h_{dec}^{(2)} \leftarrow \text{DecoderBlock}_2(H_{enc}, u_{t,k^*}; \theta_{dec2})$
+        
+        \State \quad \textbf{정책 분포 파라미터 도출  (최적 주문량에 대한 평균 $\mu$, 표준편차 $\sigma$)}
+        \State $\mu_{t}, \sigma_{t} \leftarrow \text{ProjectionHead}(h_{dec}^{(2)})$
+        \State $q_{t, k^*} \sim \mathcal{N}(\mu_{t}, \sigma_{t})$ \Comment{정규분포 $\mathcal{N}$에서 수량 샘플링}
+        \State $q_{t, k \neq k^*} \leftarrow 0$
+    \Else
+        \State $q_{t,k} \leftarrow 0 \quad \forall k$
+    \EndIf
+    
+    \State \textbf{3. 최종 행동 및 확률 반환}
+    \State \quad $C_t \leftarrow [u_{t,k}, q_{t,k}]$
+    \State \quad $p_\theta(C_t|S_t) \leftarrow \pi(k^*|S_t) \cdot p(q_{t, k^*} | k^*, S_t)$
+    \State \Return $C_t, p_\theta(C_t|S_t)$
+\end{algorithmic}
+\end{algorithm}
+
+
+\begin{algorithm}[hbt!]
+\caption{Greedy Rollout Baseline을 활용한 강화 학습}
+\label{alg:reinforce_greedy_sclsp_clean}
+\begin{algorithmic}[1]
+    \Require 계획 기간 $T$, 에폭 $E$, 배치 $B$, 공급업체 집합 $\mathcal{K}$
+    \State 정책 네트워크 $\theta$ 초기화, 베이스라인 $\theta^{BL} \leftarrow \theta$
+    
+    \For{epoch $= 1, \dots, E$}
+        \For{batch $i = 1, \dots, B$}
+            \State 초기 상태 $S_0$ 생성
+            
+            \State \textbf{1. 정책 비교 (Advantage 계산)}
+            \State \quad \textbf{a) 샘플링 롤아웃 (Exploration)}
+            \State \quad $C_{0:T}^{sample}, \text{Cost}^{sample} \leftarrow \text{RunEpisode}(\theta, S_0, \text{mode='Sample'})$
+            \State \quad \textbf{b) 그리디 롤아웃 (Baseline)}
+            \State \quad $C_{0:T}^{greedy}, \text{Cost}^{greedy} \leftarrow \text{RunEpisode}(\theta^{BL}, S_0, \text{mode='Greedy'})$
+            
+            \State \textbf{2. 그래디언트 계산}
+            \State $Advantage \leftarrow (\text{Cost}^{sample} - \text{Cost}^{greedy})$
+            \State $\nabla J \leftarrow \frac{1}{B} \sum_{t=0}^{T} Advantage \cdot \nabla_\theta \log p_\theta(C_t^{sample}|S_t)$
+            \State $\theta \leftarrow \text{Adam}(\theta, \nabla J)$
+        \EndFor
+        
+        \State \textbf{3. 베이스라인 업데이트 검증 (t-test)}
+        \If{Validate($\theta$) is significantly better than Validate($\theta^{BL}$)}
+            \State $\theta^{BL} \leftarrow \theta$ \Comment{베이스라인 갱신}
+        \EndIf
+    \EndFor
+    
+    \Statex
+    \Function{RunEpisode}{$\theta, S_0, \text{mode}$}
+        \State Total Cost $L \leftarrow 0$
+        \For{$t = 0, \dots, T$}
+            % [수정됨] \ref{...} 안의 이름을 Algorithm 1의 라벨과 일치시킴 (_clean 추가)
+            \State $C_t, \_ \leftarrow \text{Forward}(S_t; \theta, \text{mode})$ \Comment{Alg \ref{alg:dual_decoder_sclsp_clean} 호출}
+            \State \textbf{비용 계산} (구매 + 운송 + 재고 + 페널티)
+            \State $Cost_t = \sum_{k \in \mathcal{K}} (P_k q_{t,k} + C_{\text{ship}, k} \lceil \frac{q_{t,k}}{C_{\text{cap}, k}} \rceil)$
+            \State \quad $+ h[I_{t+1}]^+ + b[I_{t+1}]^- + \omega[I_{t+1} - CAP]^+$
+            \State $L \leftarrow L + Cost_t$
+            \State $S_{t+1} \leftarrow \text{StateTransition}(S_t, C_t)$ \Comment{식 (2), (3) 적용}
+        \EndFor
+        \State \Return $C_{0:T}, L$
+    \EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+\end{document}

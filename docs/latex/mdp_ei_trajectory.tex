@@ -1,0 +1,31 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs} % 표의 세련된 가로선을 위한 패키지
+\usepackage{amsmath}  % 수학 기호 사용을 위한 패키지
+\usepackage{kotex} 
+
+
+\begin{document}
+
+\begin{table}[ht]
+    \centering
+    \small % 데이터 양이 많으므로 폰트 크기를 약간 줄입니다
+    \caption{Heuristic Policy 기반 재고 관리 시뮬레이션 궤적 (7일)}
+    \label{tab:heuristic_trajectory}
+    \begin{tabular}{cllcc}
+        \toprule
+        \textbf{Time} & $S_t = \left[ I_t, x_t^1, x_t^2, \dots, x_t^7, \sin \left( \frac{2\pi t}{365} \right), \cos \left( \frac{2\pi t}{365} \right) \right]$ & $A_t = [k, q]$ & $D_t$ & $C_t = [c_{purch}, c_{ship}, c_{hold}, c_{short}, c_{over}]$ \\
+        \midrule
+        1 & $[300, 0, 0, 0, 0, 0, 0, 0, 0.2, -1.0]$ & $[1, 2209]$ & 458 & $[176720, 10000, 0, 158000, 0]$ \\
+        2 & $[-158, 0, 0, 0, 0, 0, 2209.2, 0, 0.2, -1.0]$ & $[1, 1000]$ & 287 & $[80000, 5000, 0, 445000, 0]$ \\
+        3 & $[-445, 0, 0, 0, 0, 2209.2, 1000, 0, 0.2, -1.0]$ & $[0, 0]$ & 278 & $[0, 0, 0, 723000, 0]$ \\
+        4 & $[-723, 0, 0, 0, 2209.2, 1000, 0, 0, 0.1, -1.0]$ & $[1, 1000]$ & 159 & $[80000, 5000, 0, 882000, 0]$ \\
+        5 & $[-882, 0, 0, 2209.2, 1000, 0, 1000, 0, 0.1, -1.0]$ & $[0, 0]$ & 397 & $[0, 0, 0, 1279000, 0]$ \\
+        6 & $[-1279, 0, 2209.2, 1000, 0, 1000, 0, 0, 0.1, -1.0]$ & $[0, 0]$ & 333 & $[0, 0, 0, 1612000, 0]$ \\
+        7 & $[-1612, 2209.2, 1000, 0, 1000, 0, 0, 0, 0.1, -1.0]$ & $[0, 0]$ & 327 & $[0, 0, 1351, 0, 0]$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\end{document}
