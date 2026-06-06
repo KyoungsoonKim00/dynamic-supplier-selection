@@ -18,7 +18,7 @@
   * **공급업체 제약:** 각 업체별 최소주문수량($MOQ_k$), 트럭당 운송 비용($C_{ship,k}$), 적재 용량($C_{cap,k}$) 반영
 
 ## 🧠 모델 아키텍처 (Model Architecture)
-면접관들이 직관적으로 논리 구조를 파악할 수 있도록 **Encoder-Dual Decoder 순전파 아키텍처**를 설계했습니다.
+직관적으로 논리 구조를 파악할 수 있도록 **Encoder-Dual Decoder 순전파 아키텍처**를 설계했습니다.
 
 ![Model Architecture](./docs/images/model_architecture.png)
 
