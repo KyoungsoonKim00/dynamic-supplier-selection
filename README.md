@@ -35,7 +35,7 @@
 전통적인 SCM 최적화 방식인 **Base Stock Policy (BSP) 휴리스틱 모델**과 **RL-Transformer 에이전트**의 100일간 시뮬레이션 성능비교를 수행했습니다.
 
 * **비용 최소화 달성:** 불확실성이 높은 변동 수요 상황에서 RL 에이전트가 리드타임을 선제적으로 계산하여 주문을 최적화함으로써 뉴스벤더 분위수를 따르는 BSP 모델 대비 **총비용의 비약적인 절감**(**59%감소**, BSP:20,884,283 vs DRL with Transformer: 8,626,090)을 증명했습니다.
-* <img width="944" height="605" alt="BSP_vs_RL" src="https://github.com/user-attachments/assets/5b01addd-aeaf-4b9f-a9c8-d5c68b2e4f3f" />
+![BSP vs RL 비용 비교](./docs/images/BSP_vs_RL.png)
 
 * **제약 조건 관리 능력:** 창고 용량 한계를 넘어설 때 발생하는 페널티 비용을 회피하기 위해, 에이전트가 스스로 안전재고 수준을 동적으로 조절하는 자율적 제어 패턴을 보였습니다.
 
